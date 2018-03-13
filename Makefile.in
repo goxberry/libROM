@@ -69,6 +69,7 @@ OBJS = Matrix.o \
        HDFDatabase.o \
        Utilities.o \
        ParallelBuffer.o \
+       HyperreductionAlgorithm.o \
        DEIM.o \
        QDEIM.o
 
