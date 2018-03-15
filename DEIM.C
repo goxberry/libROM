@@ -42,6 +42,8 @@
 
 #include "Matrix.h"
 #include "mpi.h"
+#include "DEIM.h"
+#include "SVD.h"
 #include <cmath>
 
 namespace CAROM {
@@ -70,17 +72,28 @@ RowInfoMax(RowInfo* a, RowInfo* b, int* len, MPI_Datatype* type)
    }
 }
 
-void
-DEIM(const Matrix* f_basis,
-     int num_f_basis_vectors_used,
-     int* f_sampled_row,
-     int* f_sampled_row_owner,
-     Matrix& f_basis_sampled,
-     int myid)
-{
+  DEIM::DEIM(
+	     SVD* svd,
+	     int num_basis_vectors_used,
+	     bool debug_algorithm) :
+    HyperreductionAlgorithm(svd,
+			    num_basis_vectors_used,
+			    debug_algorithm)
+  {
+  }
+
+  DEIM::~DEIM()
+  {
+  }
+
+  void DEIM::UpdateHyperreducedBasis()
+  {
    // This algorithm determines the rows of f that should be sampled, the
    // processor that owns each sampled row, and fills f_basis_sampled with the
    // sampled rows of the basis of the RHS.
+
+   // Check for sane inputs.
+   CAROM_ASSERT(d_svd != NULL);
 
    // Create an MPI_Datatype for the RowInfo struct.
    MPI_Datatype MaxRowType, oldtypes[2];
@@ -101,9 +114,40 @@ DEIM(const Matrix* f_basis,
    MPI_Op RowInfoOp;
    MPI_Op_create((MPI_User_function*)RowInfoMax, true, &RowInfoOp);
 
+   /* Start of block mapping object members to the arguments of the
+      DEIM function call this object method replaces. After this
+      object compiles successfully, these declarations should be
+      refactored out by renaming variables in the body of the
+      function. */
+   const Matrix* f_basis         = getBasis();
+   int  num_f_basis_vectors_used = d_num_basis_vectors_used;
+   int* f_sampled_row            = d_sampled_row;
+   int* f_sampled_row_owner      = d_sampled_row_owner;
+
+   const MPI_Comm comm = MPI_COMM_WORLD;
+   int myid;
+   CAROM_ASSERT(MPI_Comm_rank(comm, &myid) == MPI_SUCCESS);
+   /* End of block mapping object members to the arguments of the DEIM
+      function call this object method replaces. */
+
    // Get the number of basis vectors and the size of each basis vector.
    int num_basis_vectors = std::min(num_f_basis_vectors_used, f_basis->numColumns());
    int basis_size = f_basis->numRows();
+
+   /* Allocate or resize sampled/hyperreduced basis so it can store all
+      computed values. */
+   if(d_basis_sampled == NULL) {
+     d_basis_sampled = new Matrix(num_basis_vectors,
+				  num_basis_vectors,
+				  f_basis->distributed());
+   }
+   else {
+     d_basis_sampled->setSize(num_basis_vectors, num_basis_vectors);
+   }
+
+   /* This declaration maps the last argument of the DEIM function call this
+      object replaces to a member of this object. */
+   Matrix& f_basis_sampled = *d_basis_sampled;
 
    // The small matrix inverted by the algorithm.  We'll allocate the largest
    // matrix we'll need and set its size at each step in the algorithm.
@@ -217,6 +261,6 @@ DEIM(const Matrix* f_basis,
    MPI_Op_free(&RowInfoOp);
 
    delete [] c;
-}
+  }
 
 }

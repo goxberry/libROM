@@ -43,17 +43,77 @@
 #ifndef included_DEIM_h
 #define included_DEIM_h
 
+#include "HyperreductionAlgorithm.h"
+
 namespace CAROM {
 
-class Matrix;
+  class SVD;
 
-void
-DEIM(const Matrix* f_basis,
-     int num_f_basis_vectors_used,
-     int* f_sampled_row,
-     int* f_sampled_row_owner,
-     Matrix& f_basis_sampled,
-     int myid);
+/**
+ * Class DEIM defines the interface to the discrete empirical
+ * interpolation algorithm.
+ */
+  class DEIM : public HyperreductionAlgorithm {
+
+  public:
+
+    /**
+     * @brief Constructor.
+     *
+     * @pre svd != NULL
+     * @pre svd->dim > 0
+     * @pre svd->sample_per_time_interval > 0
+     * @pre num_basis_vectors_used > 0
+     *
+     * @param[in] svd The SVD algorithm used to generate the basis
+     * to be hyperreduced.
+     *
+     * @param[in] num_basis_vectors_used The number of basis vectors
+     *            used to construct a hyperreduced operator
+     *
+     * @param[in] debug_algorithm If true results of the algorithm
+     * will be printed to facilitate debugging.
+     */
+    DEIM(
+	 SVD* svd,
+	 int num_basis_vectors_used,
+	 bool debug_algorithm = false);
+
+    /**
+     * Destructor
+     */
+    ~DEIM();
+
+    /**
+     * @brief Update the hyperreduced basis based on the current
+     * state of this object and its SVD pointer member.
+     *
+     * @pre d_svd != NULL
+     *
+     */
+    virtual
+    void
+    UpdateHyperreducedBasis();
+
+  private:
+    /**
+     * @brief Unimplemented default constructor.
+     */
+    DEIM();
+
+    /**
+     * @brief Unimplemented copy constructor.
+     */
+    DEIM(
+       const DEIM& other);
+
+    /**
+     * @brief Unimplemented assignment operator.
+     */
+    DEIM&
+      operator = (
+         const DEIM& rhs);
+  };
 
 }
 
