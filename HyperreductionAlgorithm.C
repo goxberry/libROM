@@ -44,7 +44,7 @@
 
 namespace CAROM {
 
-  HyperreductionAlgorithm::HyperreductionAlgorithm(SVD* svd,
+  HyperreductionAlgorithm::HyperreductionAlgorithm(boost::shared_ptr<SVD> svd,
 						   int  max_num_basis_vectors_used,
 						   bool debug_algorithm) :
     d_svd(svd),
@@ -60,10 +60,6 @@ namespace CAROM {
     d_sampled_row_owner = new int[d_num_basis_vectors_used];
   }
 
-  /**
-   * Destructor. Assumes this object does not
-   * own the memory addressed by the SVD pointer.
-   */
   HyperreductionAlgorithm::~HyperreductionAlgorithm()
   {
     delete d_basis_sampled;

@@ -45,7 +45,7 @@
 
 #include "Matrix.h"
 #include "SVD.h"
-#include <vector>
+#include <boost/shared_ptr.hpp>
 
 namespace CAROM {
 
@@ -88,7 +88,7 @@ class HyperreductionAlgorithm
        * will be printed to facilitate debugging.
        */
       HyperreductionAlgorithm(
-	 SVD* svd,
+	 boost::shared_ptr<SVD> svd,
 	 int  max_num_basis_vectors_used,
          bool debug_algorithm = false);
 
@@ -278,7 +278,7 @@ class HyperreductionAlgorithm
        * @brief The SVD algorithm used to compute the basis to be
        * hyperreduced.
        */
-      SVD* d_svd;
+      boost::shared_ptr<SVD> d_svd;
 
       /**
        * @brief Number of basis vectors (from d_svd) used in the

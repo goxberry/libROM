@@ -73,7 +73,7 @@ RowInfoMax(RowInfo* a, RowInfo* b, int* len, MPI_Datatype* type)
 }
 
   DEIM::DEIM(
-	     SVD* svd,
+	     boost::shared_ptr<SVD> svd,
 	     int num_basis_vectors_used,
 	     bool debug_algorithm) :
     HyperreductionAlgorithm(svd,
