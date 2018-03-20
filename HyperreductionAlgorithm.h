@@ -185,6 +185,10 @@ class HyperreductionAlgorithm
 	 return d_svd->getSingularValues();
       }
 
+      // NOTE(oxberry1@llnl.gov): Should this method really be
+      // getHyperreducedBasisInverse()? We never need the hyperreduced
+      // basis -- we only ever need its inverse. Note also that
+      // QDEIM can be written so that it computes this inverse directly.
       /**
        * @brief Returns the hyperreduced basis for the current time interval.
        *
