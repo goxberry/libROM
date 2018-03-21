@@ -48,30 +48,30 @@
 #define included_HyperreducedModelSampler_h
 
 #include "SVD.h"
-#include "HyperreducedAlgorithm.h"
+#include "HyperreductionAlgorithm.h"
 #include <boost/shared_ptr.hpp>
 
 namespace CAROM {
 
 /**
- * Class HyperreducedSampler defines the interface to determine the
+ * Class HyperreducedModelSampler defines the interface to determine the
  * time at which the next sample is needed when using a basis
  * generation algorithm for reducing the linear part of a PDE/ODE, and
  * a hyperreduction algorithm (containing a second basis generation
  * algorithm) for reducing the nonlinear part of a PDE/ODE.
  */
-class HyperreducedSampler
+class HyperreducedModelSampler
 {
    public:
       /**
        * @brief Constructor.
        */
-      HyperreducedSampler();
+      HyperreducedModelSampler();
 
       /**
        * @brief Destructor.
        */
-      ~HyperreducedSampler();
+      ~HyperreducedModelSampler();
 
       /**
        * @brief Returns true if it is time for the next sample to
@@ -455,15 +455,15 @@ class HyperreducedSampler
       /**
        * @brief Unimplemented copy constructor.
        */
-      HyperreducedSampler(
-         const HyperreducedSampler& other);
+      HyperreducedModelSampler(
+         const HyperreducedModelSampler& other);
 
       /**
        * @brief Unimplemented assignment operator.
        */
-      HyperreducedSampler&
+      HyperreducedModelSampler&
       operator = (
-         const HyperreducedSampler& rhs);
+         const HyperreducedModelSampler& rhs);
 };
 
 }
