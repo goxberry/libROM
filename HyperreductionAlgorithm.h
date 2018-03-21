@@ -95,6 +95,7 @@ class HyperreductionAlgorithm
       /**
        * Destructor.
        */
+      virtual
       ~HyperreductionAlgorithm();
 
       /**
