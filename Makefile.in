@@ -71,7 +71,9 @@ OBJS = Matrix.o \
        ParallelBuffer.o \
        HyperreductionAlgorithm.o \
        DEIM.o \
-       QDEIM.o
+       QDEIM.o \
+       HyperreducedModelSampler.o \
+       IncrementalSVDDEIMSampler.o
 
 default: lib
 
