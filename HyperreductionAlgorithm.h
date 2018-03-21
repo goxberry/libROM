@@ -227,7 +227,7 @@ class HyperreductionAlgorithm
        */
       virtual
       const int*
-      getHyperrreducedBasisRowOwners()
+      getHyperreducedBasisRowOwners()
       {
 	return d_sampled_row_owner;
       }
