@@ -45,6 +45,7 @@
 #include "IncrementalSVDStandard.h"
 #include "IncrementalSVDFastUpdate.h"
 #include "DEIM.h"
+#include <boost/make_shared.hpp>
 
 #include "mpi.h"
 
@@ -94,7 +95,8 @@ IncrementalSVDDEIMSampler::IncrementalSVDDEIMSampler(
             debug_algorithm));
       d_nonlinear_basis.reset(
 	 new DEIM(
-	    new IncrementalSVDFastUpdate(dim,
+	     boost::make_shared<IncrementalSVDFastUpdate>(
+					 dim,
 					 linearity_tol,
 					 skip_linearly_dependent,
 					 samples_per_time_interval,
@@ -116,7 +118,8 @@ IncrementalSVDDEIMSampler::IncrementalSVDDEIMSampler(
             debug_algorithm));
       d_nonlinear_basis.reset(
 	 new DEIM(
-	    new IncrementalSVDStandard(dim,
+	    boost::make_shared<IncrementalSVDStandard>(
+				       dim,
 				       linearity_tol,
 				       skip_linearly_dependent,
 				       samples_per_time_interval,
@@ -194,8 +197,8 @@ IncrementalSVDDEIMSampler::computeNextLinearSampleTime(
    // Compute l = (linear basis)' * rhs
    Vector linear_rhs_vec(linear_rhs_in, dim, true);
    Vector nonlinear_rhs_vec(nonlinear_rhs_in, dim, true);
-   Vector rhs_vec;
-   linear_rhs_vec.plus(nonlinear_rhs_vec, &rhs_vec);
+   Vector rhs_vec(dim, true);
+   rhs_vec = *nonlinear_rhs_vec.plus(linear_rhs_vec);
 
    l = basis->transposeMult(rhs_vec);
 
