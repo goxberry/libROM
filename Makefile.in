@@ -73,7 +73,8 @@ OBJS = Matrix.o \
        DEIM.o \
        QDEIM.o \
        HyperreducedModelSampler.o \
-       IncrementalSVDDEIMSampler.o
+       IncrementalSVDDEIMSampler.o \
+       HyperreducedModelGenerator.o
 
 default: lib
 

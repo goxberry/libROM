@@ -48,6 +48,7 @@
 namespace CAROM {
 
 class SVDBasisGenerator;
+class HyperreducedModelGenerator;
 
 /**
  * Class BasisWriter writes the basis vectors created by an SVDBasisGenerator.
@@ -70,6 +71,25 @@ class BasisWriter {
        */
       BasisWriter(
          SVDBasisGenerator* basis_generator,
+         const std::string& base_file_name,
+         Database::formats db_format = Database::HDF5);
+
+      /**
+       * @brief Constructor.
+       *
+       * @pre basis_generator != 0
+       * @pre !base_file_name.empty()
+       *
+       * @param[in] basis_generator The generator of the basis vectors to be
+       *                            written.
+       * @param[in] base_file_name The base part of the name of the files
+       *                           holding the basis vectors.
+       * @param[in] db_format Format of the file to read.
+       *                      One of the implemented file formats defined in
+       *                      Database.
+       */
+      BasisWriter(
+         HyperreducedModelGenerator* basis_generator,
          const std::string& base_file_name,
          Database::formats db_format = Database::HDF5);
 
