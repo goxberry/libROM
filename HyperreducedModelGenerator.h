@@ -47,6 +47,7 @@
 #define included_HyperreducedModelGenerator_h
 
 #include "BasisWriter.h"
+#include "HyperreducedModelSampler.h"
 #include "SVDSampler.h"
 
 #include <string.h>
@@ -57,11 +58,12 @@ class BasisWriter;
 class Matrix;
 
 /**
- * Class HyperreducedModelGenerator is an abstract base class defining the interface for
- * the generation of basis vectors via the svd method.  This class wraps the
- * abstract SVD algorithm and sampler and provides interfaces to each so
- * that an application only needs to instantiate one concrete implementation of
- * this class to control all aspects of basis vector generation.
+ * Class HyperreducedModelGenerator is an abstract base class defining
+ * the interface for the generation of hyperreduced models.  This
+ * class wraps the abstract hyperreduction algorithm and sampler and
+ * provides interfaces to each so that an application only needs to
+ * instantiate one concrete implementation of this class to control
+ * all aspects of basis vector generation.
  */
 class HyperreducedModelGenerator
 {
@@ -73,7 +75,8 @@ class HyperreducedModelGenerator
       ~HyperreducedModelGenerator();
 
       /**
-       * @brief Returns true if it is time for the next svd sample.
+       * @brief Returns true if it is time for the next sample to
+       * train the linear basis.
        *
        * @pre time >= 0.0
        *
@@ -82,48 +85,115 @@ class HyperreducedModelGenerator
        * @return True if it is time for the next sample to be taken.
        */
       bool
-      isNextSample(
+      isNextLinearSample(
          double time)
       {
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
          CAROM_ASSERT(time >= 0.0);
-         return d_svdsampler->isNextSample(time);
+         return d_hyperreducedmodelsampler->isNextLinearSample(time);
       }
 
       /**
-       * @brief Sample the new state, u_in, at the given time.
+       * @brief Returns true if it is time for the next sample to
+       * train the nonlinear basis.
+       *
+       * @pre time >= 0.0
+       *
+       * @param[in] time Time of interest.
+       *
+       * @return True if it is time for the next sample to be taken.
+       */
+      bool
+      isNextNonlinearSample(
+         double time)
+      {
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
+         CAROM_ASSERT(time >= 0.0);
+         return d_hyperreducedmodelsampler->isNextNonlinearSample(time);
+      }
+
+      /**
+       * @brief Sample the new state, u_in, for the linear basis at
+       * the given time.
        *
        * @pre u_in != 0
        * @pre time >= 0.0
        *
        * @param[in] u_in The state at the specified time.
        * @param[in] time The simulation time for the state.
-       * @param[in] dt The current simulation dt.
+       * @param[in] dt The current simulation linear basis dt.
        *
        * @return True if the sampling was successful.
        */
       bool
-      takeSample(
+      takeLinearSample(
          const double* u_in,
          double time,
          double dt)
       {
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
          CAROM_ASSERT(u_in != 0);
          CAROM_ASSERT(time >= 0);
 
          // Check that u_in is not non-zero.
-         Vector u_vec(u_in, d_svdsampler->getDim(), true);
+         Vector u_vec(u_in, d_hyperreducedmodelsampler->getLinearBasisDim(),
+		      true);
          if (u_vec.norm() == 0.0) {
             return false;
          }
 
-         if (getNumBasisTimeIntervals() > 0 &&
-             d_svdsampler->isNewTimeInterval()) {
-            d_svdsampler->resetDt(dt);
+         if (getNumLinearBasisTimeIntervals() > 0 &&
+             d_hyperreducedmodelsampler->isNewLinearBasisTimeInterval()) {
+            d_hyperreducedmodelsampler->resetLinearBasisDt(dt);
             if (d_basis_writer) {
                d_basis_writer->writeBasis();
             }
          }
-         return d_svdsampler->takeSample(u_in, time);
+         return d_hyperreducedmodelsampler->takeLinearSample(u_in, time);
+      }
+
+      /**
+       * @brief Sample the new nonlinear function evaluation, f_in,
+       * for the nonlinear basis at the given time.
+       *
+       * @pre f_in != 0
+       * @pre time >= 0.0
+       *
+       * @param[in] f_in The nonlinear function evaluation at the
+       * specified time.
+       *
+       * @param[in] time The simulation time for the nonlinear
+       * function evaluation.
+       *
+       * @param[in] dt The current simulation nonlinear basis dt.
+       *
+       * @return True if the sampling was successful.
+       */
+      bool
+      takeNonlinearSample(
+         const double* f_in,
+         double time,
+         double dt)
+      {
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
+         CAROM_ASSERT(f_in != 0);
+         CAROM_ASSERT(time >= 0);
+
+         // Check that f_in is not non-zero.
+         Vector f_vec(f_in, d_hyperreducedmodelsampler->getNonlinearBasisDim(),
+		      true);
+         if (f_vec.norm() == 0.0) {
+            return false;
+         }
+
+         if (getNumNonlinearBasisTimeIntervals() > 0 &&
+             d_hyperreducedmodelsampler->isNewNonlinearBasisTimeInterval()) {
+            d_hyperreducedmodelsampler->resetNonlinearBasisDt(dt);
+            if (d_basis_writer) {
+               d_basis_writer->writeBasis();
+            }
+         }
+         return d_hyperreducedmodelsampler->takeNonlinearSample(f_in, time);
       }
 
       /**
@@ -138,82 +208,248 @@ class HyperreducedModelGenerator
       }
 
       /**
-       * @brief Computes next time an svd sample is needed.
+       * @brief Computes next time a linear basis sample is needed.
        *
-       * @pre u_in != 0
-       * @pre rhs_in != 0
+       * @pre u_in != NULL
+       * @pre linear_rhs_in != NULL
+       * @pre nonlinear_rhs_in != NULL
        * @pre time >= 0.0
        *
        * @param[in] u_in The state at the specified time.
-       * @param[in] rhs_in The right hand side at the specified time.
+       *
+       * @param[in] linear_rhs_in The linear part of the right hand
+       * side at the specified time.
+       *
+       * @param[in] nonlinear_rhs_in The nonlinear part of the right
+       * hand side at the specified time.
+       *
        * @param[in] time The simulation time for the state.
        */
       double
-      computeNextSampleTime(
+      computeNextLinearSampleTime(
          double* u_in,
-         double* rhs_in,
+         double* linear_rhs_in,
+	 double* nonlinear_rhs_in,
          double time)
       {
-         CAROM_ASSERT(u_in != 0);
-         CAROM_ASSERT(rhs_in != 0);
+         CAROM_ASSERT(u_in != NULL);
+         CAROM_ASSERT(linear_rhs_in != NULL);
+	 CAROM_ASSERT(nonlinear_rhs_in != NULL);
          CAROM_ASSERT(time >= 0);
 
-         return d_svdsampler->computeNextSampleTime(u_in, rhs_in, time);
+         return d_hyperreducedmodelsampler->computeNextLinearSampleTime
+	   (u_in, linear_rhs_in, nonlinear_rhs_in, time);
       }
 
       /**
-       * @brief Returns the basis vectors for the current time interval as a
-       * Matrix.
+       * @brief Computes next time a nonlinear basis sample is needed.
        *
-       * @return The basis vectors for the current time interval.
+       * @pre u_in != NULL
+       * @pre linear_rhs_in != NULL
+       * @pre nonlinear_rhs_in != NULL
+       * @pre time >= 0.0
+       *
+       * @param[in] u_in The state at the specified time.
+       *
+       * @param[in] linear_rhs_in The linear part of the right hand
+       * side at the specified time.
+       *
+       * @param[in] nonlinear_rhs_in The nonlinear part of the right
+       * hand side at the specified time.
+       *
+       * @param[in] time The simulation time for the state.
        */
-      const Matrix*
-      getBasis()
+      double
+      computeNextNonlinearSampleTime(
+         double* u_in,
+         double* linear_rhs_in,
+	 double* nonlinear_rhs_in,
+         double time)
       {
-         return d_svdsampler->getBasis();
+         CAROM_ASSERT(u_in != NULL);
+         CAROM_ASSERT(linear_rhs_in != NULL);
+	 CAROM_ASSERT(nonlinear_rhs_in != NULL);
+         CAROM_ASSERT(time >= 0);
+
+         return d_hyperreducedmodelsampler->computeNextNonlinearSampleTime
+	   (u_in, linear_rhs_in, nonlinear_rhs_in, time);
       }
 
       /**
-       * @brief Returns the singular values for the current time interval as a
-       * Matrix.
+       * @brief Returns the linear basis vectors for the current
+       * linear basis time interval as a Matrix.
        *
-       * @return The singular values for the current time interval.
+       * @return The linear basis vectors for the current linear basis
+       * time interval.
        */
       const Matrix*
-      getSingularValues()
+      getLinearBasis()
       {
-         return d_svdsampler->getSingularValues();
+         return d_hyperreducedmodelsampler->getLinearBasis();
+      }
+
+      /**
+       * @brief Returns the nonlinear basis vectors for the current
+       * nonlinear basis time interval as a Matrix.
+       *
+       * @return The nonlinear basis vectors for the current nonlinear basis
+       * time interval.
+       */
+      const Matrix*
+      getNonlinearBasis()
+      {
+         return d_hyperreducedmodelsampler->getNonlinearBasis();
+      }
+
+      /**
+       * @brief Returns the hyperreduced nonlinear basis vectors for
+       * the current time interval as a Matrix.
+       *
+       * @return The nonlinear basis vectors for the current time
+       * interval.
+       */
+      const Matrix*
+      getHyperreducedNonlinearBasis()
+      {
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
+	 return d_hyperreducedmodelsampler->getHyperreducedNonlinearBasis();
+      }
+
+      /**
+       * @brief Returns the rows of the nonlinear basis used in the
+       * hyperreduced nonlinear basis; also encodes (with the sampled
+       * row owners vector) the selection operator used in
+       * hyperreduction.
+       *
+       * @return Rows of the nonlinear basis used in the hyperreduced
+       * nonlinear basis.
+       */
+      const int*
+      getHyperreducedNonlinearBasisRows()
+      {
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
+	 return d_hyperreducedmodelsampler->getHyperreducedNonlinearBasisRows();
+      }
+
+      /**
+       * @brief Returns the process numbers that own each row of the
+       * nonlinear basis used in the hyperreduced nonlinear basis;
+       * also encodes (with the sampled row vector) the selection
+       * operator.
+       *
+       * @return Process owners of the nonlinear basis rows used in
+       * the hyperreduced basis.
+       */
+      const int*
+      getHyperreducedNonlinearBasisRowOwners()
+      {
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
+	 return
+	   d_hyperreducedmodelsampler->getHyperreducedNonlinearBasisRowOwners();
+      }
+
+      /**
+       * @brief Returns the singular values for linear basis in the
+       * current time interval as a Matrix.
+       *
+       * @return The singular values for the linear basis in the
+       * current time interval.
+       */
+      const Matrix*
+      getLinearBasisSingularValues()
+      {
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
+         return d_hyperreducedmodelsampler->getLinearBasisSingularValues();
+      }
+
+      /**
+       * @brief Returns the singular values for the nonlinear basis in the
+       * current time interval as a Matrix.
+       *
+       * @return The singular values for the nonlinear basis in the
+       * current time interval.
+       */
+      const Matrix*
+      getNonlinearBasisSingularValues()
+      {
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
+	 return d_hyperreducedmodelsampler->getNonlinearBasisSingularValues();
       }
 
       /**
        * @brief Returns the number of time intervals on which different sets of
-       * basis vectors are defined.
+       * linear basis vectors are defined.
        *
-       * @return The number of time intervals on which there are basis vectors.
+       * @return The number of time intervals on which there are
+       * linear basis vectors.
        */
       int
-      getNumBasisTimeIntervals() const
+      getNumLinearBasisTimeIntervals() const
       {
-         return d_svdsampler->getNumBasisTimeIntervals();
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
+         return d_hyperreducedmodelsampler->getNumLinearBasisTimeIntervals();
       }
 
       /**
-       * @brief Returns the start time for the requested time interval.
+       * @brief Returns the number of time intervals on which different sets of
+       * nonlinear basis vectors are defined.
+       *
+       * @return The number of time intervals on which there are
+       * nonlinear basis vectors.
+       */
+      int
+      getNumNonlinearBasisTimeIntervals() const
+      {
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
+         return d_hyperreducedmodelsampler->getNumNonlinearBasisTimeIntervals();
+      }
+
+      /**
+       * @brief Returns the start time for the requested linear basis
+       * time interval.
        *
        * @pre 0 <= which_interval
-       * @pre which_interval < getNumBasisTimeIntervals()
+       * @pre which_interval < getNumLinearBasisTimeIntervals()
        *
-       * @param[in] which_interval Time interval whose start time is needed.
+       * @param[in] which_interval Linear basis time interval whose
+       * start time is needed.
        *
-       * @return The start time for the requested time interval.
+       * @return The start time for the requested linear basis time
+       * interval.
        */
       double
-      getBasisIntervalStartTime(
+      getLinearBasisIntervalStartTime(
          int which_interval) const
       {
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
          CAROM_ASSERT(0 <= which_interval);
-         CAROM_ASSERT(which_interval < getNumBasisTimeIntervals());
-         return d_svdsampler->getBasisIntervalStartTime(which_interval);
+         CAROM_ASSERT(which_interval < getNumLinearBasisTimeIntervals());
+         return d_hyperreducedmodelsampler->getLinearBasisIntervalStartTime
+	   (which_interval);
+      }
+
+      /**
+       * @brief Returns the start time for the requested nonlinear basis
+       * time interval.
+       *
+       * @pre 0 <= which_interval
+       * @pre which_interval < getNumNonlinearBasisTimeIntervals()
+       *
+       * @param[in] which_interval Nonlinear basis time interval whose
+       * start time is needed.
+       *
+       * @return The start time for the requested nonlinear basis time
+       * interval.
+       */
+      double
+      getNonlinearBasisIntervalStartTime(
+         int which_interval) const
+      {
+	 CAROM_ASSERT(d_hyperreducedmodelsampler != NULL);
+         CAROM_ASSERT(0 <= which_interval);
+         CAROM_ASSERT(which_interval < getNumNonlinearBasisTimeIntervals());
+         return d_hyperreducedmodelsampler->getNonlinearBasisIntervalStartTime
+	   (which_interval);
       }
 
    protected:
@@ -221,7 +457,7 @@ class HyperreducedModelGenerator
        * @brief Constructor.
        *
        * Although all member functions are implemented by delegation to either
-       * d_basis_writer or d_svdsampler, this class is still abstract.  In this
+       * d_basis_writer or d_hyperreducedmodelsampler, this class is still abstract.  In this
        * context it is not yet known which SVDSampler to instantiate.  Hence an
        * instance of this class may not be constructed.
        *
@@ -244,7 +480,7 @@ class HyperreducedModelGenerator
       /**
        * @brief Pointer to the underlying sampling control object.
        */
-      boost::shared_ptr<SVDSampler> d_svdsampler;
+      boost::shared_ptr<HyperreducedModelSampler> d_hyperreducedmodelsampler;
 
    private:
       /**
