@@ -145,8 +145,8 @@ class HyperreducedModelGenerator
          if (getNumLinearBasisTimeIntervals() > 0 &&
              d_hyperreducedmodelsampler->isNewLinearBasisTimeInterval()) {
             d_hyperreducedmodelsampler->resetLinearBasisDt(dt);
-            if (d_basis_writer) {
-               d_basis_writer->writeBasis();
+            if (d_linear_basis_writer) {
+               d_linear_basis_writer->writeBasis();
             }
          }
          return d_hyperreducedmodelsampler->takeLinearSample(u_in, time);
@@ -189,8 +189,8 @@ class HyperreducedModelGenerator
          if (getNumNonlinearBasisTimeIntervals() > 0 &&
              d_hyperreducedmodelsampler->isNewNonlinearBasisTimeInterval()) {
             d_hyperreducedmodelsampler->resetNonlinearBasisDt(dt);
-            if (d_basis_writer) {
-               d_basis_writer->writeBasis();
+            if (d_nonlinear_basis_writer) {
+               d_nonlinear_basis_writer->writeBasis();
             }
          }
          return d_hyperreducedmodelsampler->takeNonlinearSample(f_in, time);
@@ -202,9 +202,12 @@ class HyperreducedModelGenerator
       void
       endSamples()
       {
-         if (d_basis_writer) {
-            d_basis_writer->writeBasis();
+         if (d_linear_basis_writer) {
+            d_linear_basis_writer->writeBasis();
          }
+	 if (d_nonlinear_basis_writer) {
+	    d_nonlinear_basis_writer->writeBasis();
+	 }
       }
 
       /**
@@ -456,10 +459,12 @@ class HyperreducedModelGenerator
       /**
        * @brief Constructor.
        *
-       * Although all member functions are implemented by delegation to either
-       * d_basis_writer or d_hyperreducedmodelsampler, this class is still abstract.  In this
-       * context it is not yet known which SVDSampler to instantiate.  Hence an
-       * instance of this class may not be constructed.
+       * Although all member functions are implemented by delegation
+       * to either d_linear_basis_writer, d_nonlinear_basis_writer, or
+       * d_hyperreducedmodelsampler, this class is still abstract.  In
+       * this context it is not yet known which HyperreducedModelSampler to
+       * instantiate.  Hence an instance of this class may not be
+       * constructed.
        *
        * @param[in] basis_file_name The base part of the name of the file
        *                            containing the basis vectors.  Each process
@@ -469,13 +474,19 @@ class HyperreducedModelGenerator
        *                        vectors.
        */
       HyperreducedModelGenerator(
-         const std::string& basis_file_name = "",
+         const std::string& linear_basis_file_name = "",
+	 const std::string& nonlinear_basis_file_name = "",
          Database::formats file_format = Database::HDF5);
 
       /**
-       * @brief Writer of basis vectors.
+       * @brief Writer of linear basis vectors.
        */
-      BasisWriter* d_basis_writer;
+      BasisWriter* d_linear_basis_writer;
+
+      /**
+       * @brief Writer of nonlinear basis vectors.
+       */
+      BasisWriter* d_nonlinear_basis_writer;
 
       /**
        * @brief Pointer to the underlying sampling control object.

@@ -49,20 +49,28 @@
 namespace CAROM {
 
 HyperreducedModelGenerator::HyperreducedModelGenerator(
-   const std::string& basis_file_name,
+   const std::string& linear_basis_file_name,
+   const std::string& nonlinear_basis_file_name,
    Database::formats file_format) :
-   d_basis_writer(0)
+   d_linear_basis_writer(NULL),
+   d_nonlinear_basis_writer(NULL)
 {
-   if (!basis_file_name.empty()) {
-      d_basis_writer = new BasisWriter(this, basis_file_name, file_format);
+   if (!linear_basis_file_name.empty()) {
+      d_linear_basis_writer =
+	new BasisWriter(this, linear_basis_file_name, file_format,
+			BasisWriter::LINEAR_BASIS);
+   }
+   if (!nonlinear_basis_file_name.empty()) {
+      d_nonlinear_basis_writer =
+	new BasisWriter(this, nonlinear_basis_file_name, file_format,
+			BasisWriter::NONLINEAR_BASIS);
    }
 }
 
 HyperreducedModelGenerator::~HyperreducedModelGenerator()
 {
-   if (d_basis_writer) {
-      delete d_basis_writer;
-   }
+   delete d_linear_basis_writer;
+   delete d_nonlinear_basis_writer;
 }
 
 }
