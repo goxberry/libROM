@@ -43,6 +43,7 @@
 #include "HDFDatabase.h"
 #include "Matrix.h"
 #include "SVDBasisGenerator.h"
+#include "HyperreducedModelGenerator.h"
 #include "Utilities.h"
 
 #include "mpi.h"
@@ -52,10 +53,57 @@ namespace CAROM {
 BasisWriter::BasisWriter(
    SVDBasisGenerator* basis_generator,
    const std::string& base_file_name,
-   Database::formats db_format) :
+   Database::formats db_format,
+   BasisWriter::BasisType basis_type) :
+   d_basis_type(basis_type),
    d_basis_generator(basis_generator),
+   d_hyperreducedmodel_generator(NULL),
    d_num_intervals_written(0)
 {
+   CAROM_ASSERT(basis_type == BasisWriter::SVD_BASIS);
+   CAROM_ASSERT(basis_generator != 0);
+   CAROM_ASSERT(!base_file_name.empty());
+
+   int mpi_init;
+   MPI_Initialized(&mpi_init);
+   int rank;
+   if (mpi_init) {
+      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+   }
+   else {
+      rank = 0;
+   }
+   char tmp[100];
+   sprintf(tmp, ".%06d", rank);
+   std::string full_file_name = base_file_name + tmp;
+   if (db_format == Database::HDF5) {
+      d_database = new HDFDatabase();
+   }
+   d_database->create(full_file_name);
+}
+
+BasisWriter::BasisWriter(
+   HyperreducedModelGenerator* basis_generator,
+   const std::string& base_file_name,
+   Database::formats db_format,
+   BasisWriter::BasisType basis_type) :
+   d_basis_type(basis_type),
+   d_basis_generator(NULL),
+   d_hyperreducedmodel_generator(basis_generator),
+   d_num_intervals_written(0)
+{
+   /* Note: Although the assertion below could be written more simply
+      as (basis_type != BasisWriter::SVD_BASIS), the intent here is to
+      communicate that *only* the BasisWriter::LINEAR_BASIS and
+      BasisWriter::NONLINEAR_BASIS variants are supported at the
+      moment. If additional values are added to
+      BasisWriter::BasisType, the code below will return an
+      error. This error will remind developers to check and fix their
+      code, whereas (basis_type != BasisWriter::SVD_BASIS) would
+      silently succeed.
+   */
+   CAROM_ASSERT((basis_type == BasisWriter::LINEAR_BASIS) ||
+		(basis_type == BasisWriter::NONLINEAR_BASIS));
    CAROM_ASSERT(basis_generator != 0);
    CAROM_ASSERT(!base_file_name.empty());
 
@@ -87,6 +135,30 @@ BasisWriter::~BasisWriter()
 void
 BasisWriter::writeBasis()
 {
+  switch(d_basis_type) {
+  case(SVD_BASIS):
+    writeSVDBasis();
+    break;
+  case(LINEAR_BASIS):
+    writeLinearBasis();
+    break;
+  case(NONLINEAR_BASIS):
+    writeNonlinearBasis();
+    break;
+  default:
+    /*
+       This case should never be reached, and is here for defensive
+       programming, in case additional values are added to
+       BasisWriter::BasisType.
+    */
+    CAROM_ASSERT(false);
+    break;
+  }
+}
+
+void
+BasisWriter::writeSVDBasis()
+{
    char tmp[100];
    double time_interval_start_time =
       d_basis_generator->getBasisIntervalStartTime(d_num_intervals_written);
@@ -104,4 +176,46 @@ BasisWriter::writeBasis()
    ++d_num_intervals_written;
 }
 
+void
+BasisWriter::writeLinearBasis()
+{
+   char tmp[100];
+   double time_interval_start_time =
+      d_hyperreducedmodel_generator->getLinearBasisIntervalStartTime
+     (d_num_intervals_written);
+   sprintf(tmp, "time_%06d", d_num_intervals_written);
+   d_database->putDouble(tmp, time_interval_start_time);
+   const Matrix* basis = d_hyperreducedmodel_generator->getLinearBasis();
+   int num_rows = basis->numRows();
+   sprintf(tmp, "num_rows_%06d", d_num_intervals_written);
+   d_database->putInteger(tmp, num_rows);
+   int num_cols = basis->numColumns();
+   sprintf(tmp, "num_cols_%06d", d_num_intervals_written);
+   d_database->putInteger(tmp, num_cols);
+   sprintf(tmp, "basis_%06d", d_num_intervals_written);
+   d_database->putDoubleArray(tmp, &basis->item(0, 0), num_rows*num_cols);
+   ++d_num_intervals_written;
 }
+
+void
+BasisWriter::writeNonlinearBasis()
+{
+   char tmp[100];
+   double time_interval_start_time =
+      d_hyperreducedmodel_generator->getNonlinearBasisIntervalStartTime
+     (d_num_intervals_written);
+   sprintf(tmp, "time_%06d", d_num_intervals_written);
+   d_database->putDouble(tmp, time_interval_start_time);
+   const Matrix* basis = d_hyperreducedmodel_generator->getNonlinearBasis();
+   int num_rows = basis->numRows();
+   sprintf(tmp, "num_rows_%06d", d_num_intervals_written);
+   d_database->putInteger(tmp, num_rows);
+   int num_cols = basis->numColumns();
+   sprintf(tmp, "num_cols_%06d", d_num_intervals_written);
+   d_database->putInteger(tmp, num_cols);
+   sprintf(tmp, "basis_%06d", d_num_intervals_written);
+   d_database->putDoubleArray(tmp, &basis->item(0, 0), num_rows*num_cols);
+   ++d_num_intervals_written;
+}
+
+} /* end namespace CAROM */
