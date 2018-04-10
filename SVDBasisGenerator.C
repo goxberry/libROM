@@ -54,7 +54,8 @@ SVDBasisGenerator::SVDBasisGenerator(
    d_basis_writer(0)
 {
    if (!basis_file_name.empty()) {
-      d_basis_writer = new BasisWriter(this, basis_file_name, file_format);
+      d_basis_writer = new BasisWriter(this, basis_file_name, file_format,
+				       BasisWriter::SVD_BASIS);
    }
 }
 
