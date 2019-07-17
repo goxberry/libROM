@@ -971,6 +971,20 @@ class Matrix
       bool d_owns_data;
 };
 
+    /**
+     * @brief Function generating a random orthogonal matrix
+     * distributed according to Haar measure using the approach from
+     * T. W. Anderson, I. Olkin, L. G. Underhill, "Generation of
+     * Random Orthogonal Matrices", SIAM J. Sci. Stat. Comput.,
+     * Vol. 8, no. 4, p. 625-629 (1987). See also discussions in
+     * A. Edelman, R. R. Rao, "Random Matrix Theory", Acta Numerica
+     * (2005), p. 1-65 (review article), and G. W. Stewart, "The
+     * Efficient Generation of Random Orthogonal Matrices with an
+     * application to condition number estimation", SIAM
+     * J. Numer. Anal., Vol. 17, No. 3, June 1980.
+     */
+    Matrix GenerateHaarRandomOrthogonalMatrix(int dim, int seed);
+
 }
 
 #endif
